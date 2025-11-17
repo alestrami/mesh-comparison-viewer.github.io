@@ -1,0 +1,370 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>MeshAnything Comparison - HF CDN</title>
+
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
+    <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160/build/three.module.js",
+        "three/addons/loaders/OBJLoader.js": "https://unpkg.com/three@0.160/examples/jsm/loaders/OBJLoader.js",
+        "three/addons/loaders/GLTFLoader.js": "https://unpkg.com/three@0.160/examples/jsm/loaders/GLTFLoader.js",
+        "three/addons/controls/OrbitControls.js": "https://unpkg.com/three@0.160/examples/jsm/controls/OrbitControls.js"
+      }
+    }
+    </script>
+
+    <style>
+      html, body { height:100%; margin:0; }
+      .grid {
+        display:grid;
+        grid-template-columns: repeat(5, 1fr);
+        grid-auto-rows: 33vh;
+        gap: 0;
+        height: 100vh;
+      }
+      .cell { position:relative; background:#fff; overflow:hidden; border: 1px solid #eee; }
+      model-viewer { width:100%; height:100%; display:block; background:#fff; }
+      .label {
+        position:absolute; top:10px; left:10px; padding:2px 8px;
+        background:#000b; color:#fff; border-radius:999px;
+        font:12px/18px system-ui, sans-serif; pointer-events:none; z-index:2;
+      }
+      canvas.three { display:block; width:100%; height:100%; }
+    </style>
+  </head>
+  <body>
+    <div class="grid" id="main-grid"></div>
+
+    <script type="module">
+      import * as THREE from 'three';
+      import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+      import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
+      import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+      // ═══════════════════════════════════════════════════════════════
+      // HUGGING FACE CDN CONFIG - Replace local paths with HF URLs
+      // ═══════════════════════════════════════════════════════════════
+      const HF_BASE = 'https://huggingface.co/datasets/alestrami/mesh-comparison-assets/resolve/main';
+
+      const GRID_CONFIG = [
+        {
+          glb: { path: `${HF_BASE}/0_car_wo_interiors/model_normalized.glb`, label: 'Mesh shapeNet wo interiors' },
+          pointCloud1: { path: `${HF_BASE}/0_car_wo_interiors/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
+          obj1: { path: `${HF_BASE}/0_car_wo_interiors/14_12-04-48/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
+          pointCloud2: { path: `${HF_BASE}/0_car_wo_interiors/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
+          obj2: { path: `${HF_BASE}/0_car_wo_interiors/sugar/sugarfine_3Dgs7000_densityestim02_sdfnorm02_level03_decim1000000_normalconsistency01_gaussperface1_gen.obj`, label: 'Output MA with input 3DGS' }
+        },
+        {
+          glb: { path: `${HF_BASE}/1st_with_interiors/model_normalized.glb`, label: 'Mesh shapeNet with interiors' },
+          pointCloud1: { path: `${HF_BASE}/1st_with_interiors/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
+          obj1: { path: `${HF_BASE}/1st_with_interiors/naive/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
+          pointCloud2: { path: `${HF_BASE}/1st_with_interiors/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
+          obj2: { path: `${HF_BASE}/1st_with_interiors/sugar/sugar.obj`, label: 'Output MA with input 3DGS' }
+        },
+        {
+          glb: { path: `${HF_BASE}/2_car/model_normalized.glb`, label: 'Mesh shapeNet' },
+          pointCloud1: { path: `${HF_BASE}/2_car/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
+          obj1: { path: `${HF_BASE}/2_car/naive/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
+          pointCloud2: { path: `${HF_BASE}/2_car/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
+          obj2: { path: `${HF_BASE}/2_car/sugar/sugar.obj`, label: 'Output MA with input 3DGS' }
+        },
+        {
+          glb: { path: `${HF_BASE}/3_car/model_normalized.glb`, label: 'Mesh shapeNet' },
+          pointCloud1: { path: `${HF_BASE}/3_car/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
+          obj1: { path: `${HF_BASE}/3_car/naive/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
+          pointCloud2: { path: `${HF_BASE}/3_car/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
+          obj2: { path: `${HF_BASE}/3_car/sugar/sugarfine_3Dgs7000_densityestim02_sdfnorm02_level03_decim1000000_normalconsistency01_gaussperface1_gen.obj`, label: 'Output MA with input 3DGS' }
+        },
+        {
+          glb: { path: `${HF_BASE}/4_car/model_normalized.glb`, label: 'Mesh shapeNet' },
+          pointCloud1: { path: `${HF_BASE}/4_car/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
+          obj1: { path: `${HF_BASE}/4_car/naive/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
+          pointCloud2: { path: `${HF_BASE}/4_car/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
+          obj2: { path: `${HF_BASE}/4_car/sugar/sugarfine_3Dgs7000_densityestim02_sdfnorm02_level03_decim1000000_normalconsistency01_gaussperface1_gen.obj`, label: 'Output MA with input 3DGS' }
+        },
+        {
+          glb: { path: `${HF_BASE}/5_car/model_normalized.glb`, label: 'Mesh shapeNet' },
+          pointCloud1: { path: `${HF_BASE}/5_car/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
+          obj1: { path: `${HF_BASE}/5_car/naive/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
+          pointCloud2: { path: `${HF_BASE}/5_car/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
+          obj2: { path: `${HF_BASE}/5_car/sugar/sugarfine_3Dgs7000_densityestim02_sdfnorm02_level03_decim1000000_normalconsistency01_gaussperface1_gen.obj`, label: 'Output MA with input 3DGS' }
+        },
+        {
+          glb: { path: `${HF_BASE}/6_car/model_normalized.glb`, label: 'Mesh shapeNet' },
+          pointCloud1: { path: `${HF_BASE}/6_car/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
+          obj1: { path: `${HF_BASE}/6_car/naive/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
+          pointCloud2: { path: `${HF_BASE}/6_car/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
+          obj2: { path: `${HF_BASE}/6_car/sugar/sugarfine_3Dgs7000_densityestim02_sdfnorm02_level03_decim1000000_normalconsistency01_gaussperface1_gen.obj`, label: 'Output MA with input 3DGS' }
+        },
+        {
+          glb: { path: `${HF_BASE}/7_car/model_normalized.glb`, label: 'Mesh shapeNet' },
+          pointCloud1: { path: `${HF_BASE}/7_car/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
+          obj1: { path: `${HF_BASE}/7_car/naive/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
+          pointCloud2: { path: `${HF_BASE}/7_car/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
+          obj2: { path: `${HF_BASE}/7_car/sugar/sugarfine_3Dgs7000_densityestim02_sdfnorm02_level03_decim1000000_normalconsistency01_gaussperface1_gen.obj`, label: 'Output MA with input 3DGS' }
+        },
+        {
+          glb: { path: `${HF_BASE}/8_car/model_normalized.glb`, label: 'Mesh shapeNet' },
+          pointCloud1: { path: `${HF_BASE}/8_car/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
+          obj1: { path: `${HF_BASE}/8_car/naive/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
+          pointCloud2: { path: `${HF_BASE}/8_car/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
+          obj2: { path: `${HF_BASE}/8_car/sugar/sugar.obj`, label: 'Output MA with input 3DGS' }
+        },
+        {
+          glb: { path: `${HF_BASE}/9_car/model_normalized.glb`, label: 'Mesh shapeNet' },
+          pointCloud1: { path: `${HF_BASE}/9_car/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
+          obj1: { path: `${HF_BASE}/9_car/naive/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
+          pointCloud2: { path: `${HF_BASE}/9_car/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
+          obj2: { path: `${HF_BASE}/9_car/sugar/sugar.obj`, label: 'Output MA with input 3DGS' }
+        }
+      ];
+
+      // ═══════════════════════════════════════════════════════════════
+      // BUILD GRID DYNAMICALLY
+      // ═══════════════════════════════════════════════════════════════
+      function standardizeOrientation(object, viewerType) {
+        if (!object) return null;
+        object.rotation.set(0, 0, 0);
+        
+        if (viewerType !== 'model-viewer') {
+          object.rotation.y = -Math.PI / 2;
+        }
+
+        if (viewerType === 'model-viewer') {
+          return '0deg 0deg 100%';
+        }
+        return null;
+      }
+
+      function buildGrid() {
+        const gridContainer = document.getElementById('main-grid');
+        
+        GRID_CONFIG.forEach((row, rowIndex) => {
+          createCell(gridContainer, `r${rowIndex}c0`, row.glb.label, 'model-viewer', row.glb.path);
+          createCell(gridContainer, `r${rowIndex}c1`, row.pointCloud1.label, 'three-pc', row.pointCloud1.path);
+          createCell(gridContainer, `r${rowIndex}c2`, row.obj1.label, 'three-obj', row.obj1.path);
+          createCell(gridContainer, `r${rowIndex}c3`, row.pointCloud2.label, 'three-pc', row.pointCloud2.path);
+          createCell(gridContainer, `r${rowIndex}c4`, row.obj2.label, 'three-obj', row.obj2.path);
+        });
+      }
+
+      function createCell(container, cellId, labelText, viewerType, assetPath) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        
+        const label = document.createElement('div');
+        label.className = 'label';
+        label.textContent = labelText;
+        cell.appendChild(label);
+        
+        if (viewerType === 'model-viewer') {
+          const viewer = document.createElement('model-viewer');
+          viewer.src = assetPath;
+          viewer.setAttribute('camera-controls', '');
+          viewer.setAttribute('environment-image', 'neutral');
+          cell.appendChild(viewer);
+        } else { 
+          cell.id = cellId;
+          
+          requestAnimationFrame(() => {
+            if (viewerType === 'three-obj') {
+              mountOBJCell(cellId, assetPath);
+            } else if (viewerType === 'three-pc') {
+              mountPointCell(cellId, assetPath);
+            }
+          });
+        }
+        
+        container.appendChild(cell);
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // THREE.JS HELPERS
+      // ═══════════════════════════════════════════════════════════════
+      async function mountPointCell(containerId, url, pointSize = 0.006) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xffffff);
+
+        const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 10000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.domElement.className = 'three';
+        container.appendChild(renderer.domElement);
+
+        function resizeToContainer() {
+          const w = container.clientWidth || container.offsetWidth;
+          const h = container.clientHeight || container.offsetHeight;
+          if (!w || !h) return;
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h, false);
+        }
+        resizeToContainer();
+        window.addEventListener('resize', resizeToContainer);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+        const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+        dir.position.set(2, 2, 3);
+        scene.add(dir);
+
+        try {
+          const loader = new GLTFLoader();
+          const gltf = await loader.loadAsync(url);
+          const root = gltf.scene || gltf.scenes[0];
+          
+          root.traverse(child => {
+            if (child.isPoints) {
+              child.material = new THREE.PointsMaterial({
+                size: pointSize,
+                sizeAttenuation: true,
+                color: 0x333333,
+                transparent: false
+              });
+              
+              const posAttr = child.geometry.getAttribute('position');
+              const colors = new Float32Array(posAttr.count * 3);
+              
+              for (let i = 0; i < posAttr.count; i++) {
+                const y = posAttr.getY(i);
+                const normalizedY = (y + 1) / 2;
+                
+                colors[i * 3] = 0.3 + normalizedY * 0.2;
+                colors[i * 3 + 1] = 0.3 + normalizedY * 0.1;
+                colors[i * 3 + 2] = 0.4 + normalizedY * 0.1;
+              }
+              
+              child.geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+              child.material.vertexColors = true;
+            }
+          });
+
+          scene.add(root);
+
+          const box = new THREE.Box3().setFromObject(root);
+          let size = box.getSize(new THREE.Vector3()).length() || 1;
+          const center = box.getCenter(new THREE.Vector3());
+          root.position.sub(center);
+
+          const scale = 1.0 / size;
+          if (Number.isFinite(scale) && scale > 0 && (scale < 0.001 || scale > 1000)) {
+            root.scale.setScalar(scale);
+            const box2 = new THREE.Box3().setFromObject(root);
+            size = box2.getSize(new THREE.Vector3()).length() || 1;
+          }
+
+          camera.position.set(0, 1, size * 1);
+          camera.lookAt(0, 0, 0);
+
+          const controls = new OrbitControls(camera, renderer.domElement);
+          controls.enableDamping = true;
+          controls.enableZoom = true;
+
+          function tick() {
+            requestAnimationFrame(tick);
+            controls.update();
+            renderer.render(scene, camera);
+          }
+          tick();
+          
+        } catch (error) {
+          console.error(`Failed to load ${url}:`, error);
+        }
+      }
+
+      async function mountOBJCell(containerId, objUrl) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xffffff);
+
+        const camera = new THREE.PerspectiveCamera(50, 1, 0.01, 10000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.domElement.className = 'three';
+        container.appendChild(renderer.domElement);
+
+        function resizeToContainer() {
+          const w = container.clientWidth || container.offsetWidth;
+          const h = container.clientHeight || container.offsetHeight;
+          if (!w || !h) return;
+          camera.aspect = w / h;
+          camera.updateProjectionMatrix();
+          renderer.setSize(w, h, false);
+        }
+        resizeToContainer();
+        window.addEventListener('resize', resizeToContainer);
+
+        scene.add(new THREE.AmbientLight(0xffffff, 1.0));
+        const dir = new THREE.DirectionalLight(0xffffff, 1.2);
+        dir.position.set(2, 2, 3);
+        scene.add(dir);
+
+        try {
+          const objLoader = new OBJLoader();
+          const object = await objLoader.loadAsync(objUrl);
+
+          const flatMat = new THREE.MeshStandardMaterial({
+            color: 0xffcc33,
+            flatShading: true,
+            roughness: 1.0,
+            metalness: 0.0,
+            side: THREE.DoubleSide
+          });
+
+          object.traverse(child => {
+            if (child.isMesh) {
+              child.geometry.computeVertexNormals();
+              child.material = flatMat;
+
+              const wireGeo = new THREE.WireframeGeometry(child.geometry);
+              const wireMat = new THREE.LineBasicMaterial({ color: 0x222222 });
+              const wire = new THREE.LineSegments(wireGeo, wireMat);
+              wire.renderOrder = 1;
+              child.add(wire);
+            }
+          });
+
+          scene.add(object);
+
+          const box = new THREE.Box3().setFromObject(object);
+          let size = box.getSize(new THREE.Vector3()).length() || 1;
+          const center = box.getCenter(new THREE.Vector3());
+          object.position.sub(center);
+
+          const scale = 1.0 / size;
+          if (Number.isFinite(scale) && scale > 0 && (scale < 0.001 || scale > 1000)) {
+            object.scale.setScalar(scale);
+            const box2 = new THREE.Box3().setFromObject(object);
+            size = box2.getSize(new THREE.Vector3()).length() || 1;
+          }
+
+          camera.position.set(0, 0, size * 1.5);
+          camera.lookAt(0, 0, -1);
+
+          const controls = new OrbitControls(camera, renderer.domElement);
+          controls.enableDamping = true;
+
+          function tick() {
+            requestAnimationFrame(tick);
+            controls.update();
+            renderer.render(scene, camera);
+          }
+          tick();
+        } catch (error) {
+          console.error(`Failed to load ${objUrl}:`, error);
+        }
+      }
+
+      // ═══════════════════════════════════════════════════════════════
+      // INITIALIZE
+      // ═══════════════════════════════════════════════════════════════
+      buildGrid();
+    </script>
+  </body>
+</html>
