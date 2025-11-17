@@ -1,3 +1,3 @@
 # mesh-comparison-viewer
 
-Simple viewer of mesh generation comparing 2 different point cloud distribution: from Shapenet mesh sampling and from 3DGS sampling
+Simple viewer of MeshAnything mesh generation comparing 2 different point cloud distribution: (a) from Shapenet mesh sampling and (b) from 3DGS sampling
