@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8"/>
-    <title>MeshAnything Comparison - HF CDN</title>
+    <title>MeshAnything Comparison - HF </title>
 
     <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
     <script async src="https://cdn.jsdelivr.net/npm/es-module-shims@1.6.3/dist/es-module-shims.js"></script>
@@ -34,10 +34,29 @@
         font:12px/18px system-ui, sans-serif; pointer-events:none; z-index:2;
       }
       canvas.three { display:block; width:100%; height:100%; }
+      .grid-wrapper {
+  display: grid;
+  grid-template-columns: 40px auto; /* Row # column + main grid */
+  height: 100vh;
+}
+
+.row-numbers {
+  display: grid;
+  grid-auto-rows: 33vh;
+  font: 16px/33vh system-ui, sans-serif;
+  text-align: center;
+  background: #f7f7f7;
+  border-right: 1px solid #ddd;
+}
+
     </style>
   </head>
   <body>
+        <div class="grid-wrapper">
+    <div class="row-numbers" id="row-numbers"></div>
     <div class="grid" id="main-grid"></div>
+    </div>
+
 
     <script type="module">
       import * as THREE from 'three';
@@ -112,14 +131,14 @@
           pointCloud1: { path: `${HF_BASE}/8_car/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
           obj1: { path: `${HF_BASE}/8_car/naive/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
           pointCloud2: { path: `${HF_BASE}/8_car/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
-          obj2: { path: `${HF_BASE}/8_car/sugar/sugar.obj`, label: 'Output MA with input 3DGS' }
+          obj2: { path: `${HF_BASE}/8_car/sugar/sugarfine_3Dgs7000_densityestim02_sdfnorm02_level03_decim1000000_normalconsistency01_gaussperface1_gen.obj`, label: 'Output MA with input 3DGS' }
         },
         {
           glb: { path: `${HF_BASE}/9_car/model_normalized.glb`, label: 'Mesh shapeNet' },
           pointCloud1: { path: `${HF_BASE}/9_car/naive/pc_normal_0.glb`, label: 'Sampled Point Cloud from Mesh - Input MA' },
           obj1: { path: `${HF_BASE}/9_car/naive/model_normalized_gen.obj`, label: 'Output MA naive (OBJ)' },
           pointCloud2: { path: `${HF_BASE}/9_car/sugar/pc_normal_0.glb`, label: 'Sampled Point Cloud from 3DGS - Input MA' },
-          obj2: { path: `${HF_BASE}/9_car/sugar/sugar.obj`, label: 'Output MA with input 3DGS' }
+          obj2: { path: `${HF_BASE}/9_car/sugar/sugarfine_3Dgs7000_densityestim02_sdfnorm02_level03_decim1000000_normalconsistency01_gaussperface1_gen.obj`, label: 'Output MA with input 3DGS' }
         }
       ];
 
@@ -142,8 +161,13 @@
 
       function buildGrid() {
         const gridContainer = document.getElementById('main-grid');
+        const rowNumbersContainer = document.getElementById("row-numbers");
+
         
         GRID_CONFIG.forEach((row, rowIndex) => {
+        const num = document.createElement("div");
+        num.textContent = rowIndex;
+        rowNumbersContainer.appendChild(num);
           createCell(gridContainer, `r${rowIndex}c0`, row.glb.label, 'model-viewer', row.glb.path);
           createCell(gridContainer, `r${rowIndex}c1`, row.pointCloud1.label, 'three-pc', row.pointCloud1.path);
           createCell(gridContainer, `r${rowIndex}c2`, row.obj1.label, 'three-obj', row.obj1.path);
